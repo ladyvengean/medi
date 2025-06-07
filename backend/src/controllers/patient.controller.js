@@ -1,5 +1,4 @@
-import Collector from "../models/collector.model.js";
-import WasteReport from "../models/wasteReport.model.js";
+
 
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Apierror } from "../utils/Apierror.js";

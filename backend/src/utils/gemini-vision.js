@@ -5,25 +5,87 @@ dotenv.config();
 
 const API_KEY = process.env.API_KEY_GEMINI;
 const genAI = new GoogleGenerativeAI(API_KEY);
-async function run(imageData) {
-	const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// async function run(imageData) {
+// 	const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-	const prompt = `suggest me what type of waste is it, electric_waste, recyclable_waste, non-recyclable_waste, only give from these 3 options plss`;
+// 	const prompt = `suggest me what type of waste is it, electric_waste, recyclable_waste, non-recyclable_waste, only give from these 3 options plss`;
 
-	try {
-		const generativePart = await fileToGenerativePart(imageData, 'image/jpeg');
-		const result = await model.generateContent([prompt, generativePart]);
+// 	try {
+// 		const generativePart = await fileToGenerativePart(imageData, 'image/jpeg');
+// 		const result = await model.generateContent([prompt, generativePart]);
 
-		const response = result.response;
-		const text = response.text();
+// 		const response = result.response;
+// 		const text = response.text();
 
-		console.log('hello',text);
-		return text;
-	} catch (error) {
-		console.error('Error in run function:', error);
-		throw error; // Re-throw the error to be caught by the calling function
+// 		console.log('hello',text);
+// 		return text;
+// 	} catch (error) {
+// 		console.error('Error in run function:', error);
+// 		throw error; // Re-throw the error to be caught by the calling function
 		
+// 	}
+// }
+
+// export default run;
+
+const extractMedicalData = async (generativePart) => {
+	try{
+		const prompt = `
+        You are a medical document analyzer. Extract the following information from this medical document and return ONLY a valid JSON object with these exact fields:
+
+        {
+            "name": "patient full name",
+            "age": "patient age as number",
+            "diseases": ["current diseases/conditions as array"],
+            "medications": ["current medications as array"],
+            "allergies": ["allergies as array"],
+            "lastVisit": "last visit date in YYYY-MM-DD format"
+        }
+
+        Rules:
+        1. If any information is not found, use null for that field
+        2. For arrays, use empty array [] if no data found
+        3. Return ONLY the JSON object, no additional text
+        4. Ensure all medication names are properly formatted
+        5. Include both brand and generic names if available`
+		const result = await model.generateContent([prompt,generativePart]);
+		const responseText = result.response.text();
+
+		//extracting now hehe and cleaning it
+		let cleanedResponse = responseText.trim();
+		if (cleanedResponse.startsWith('```json')) {
+            cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/\n?```$/, '');
+        } else if (cleanedResponse.startsWith('```')) {
+            cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/\n?```$/, '');
+        }
+		//parse the json response
+		const extractedData = JSON.parse(cleanedResponse);
+		//cleaning the data and validating it
+		const cleanedData = {
+            name: extractedData.name || null,
+            age: extractedData.age ? parseInt(extractedData.age) : null,
+            diseases: Array.isArray(extractedData.diseases) ? extractedData.diseases.filter(d => d) : [],
+            medications: Array.isArray(extractedData.medications) ? extractedData.medications.filter(m => m) : [],
+            allergies: Array.isArray(extractedData.allergies) ? extractedData.allergies.filter(a => a) : [],
+            lastVisit: extractedData.lastVisit || null
+        };
+
+		return cleanedData;
+	}
+	catch(error){
+		console.error('Error in gemini extraction pal',error);	
+		return {
+			name: null,
+            age: null,
+            diseases: [],
+            medications: [],
+            allergies: [],
+            lastVisit: null,
+            error: `Extraction failed: ${error.message}`
+		}
+
 	}
 }
 
-export default run;
+export {extractMedicalData};

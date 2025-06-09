@@ -1,9 +1,9 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from 'mongoose';
 
-const documentSchema = new mongoose.Schema({
+const documentSchema = new Schema({
     patientId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Patient",
+        type: Schema.Types.ObjectId,
+        ref: 'Patient',
         required: true
     },
     fileName: {
@@ -26,24 +26,25 @@ const documentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    // Gemini processing status
     processingStatus: {
         type: String,
-        enum: ['pending', 'processing', 'completed', 'failed'],
-        default: 'pending'
+        enum: ['processing', 'completed', 'failed'],
+        default: 'processing'
     },
-    // Extracted data from this document
     extractedData: {
         diseases: [String],
         medications: [String],
         labs: [String],
         doctors: [String],
-        rawText: String, // Full OCR text
-        confidence: Number // Gemini confidence score
+        allergies: [String],
+        rawText: String,
+        confidence: Number
     },
-    processedAt: Date,
-    errorMessage: String // If processing fails
-}, { timestamps: true });
+    errorMessage: String,
+    processedAt: Date
+}, {
+    timestamps: true
+});
 
-const Document = mongoose.model("Document", documentSchema);
+const Document = mongoose.model('Document', documentSchema);
 export default Document;

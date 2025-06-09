@@ -1,20 +1,23 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from 'mongoose';
 
-const patientSchema = new mongoose.Schema({
+const patientSchema = new Schema({
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User", // Reference to your existing User model
-        required: true
+        type: String,
+        required: true,
+        unique: true
     },
     name: {
         type: String,
         required: true
     },
+    age: {
+        type: Number,
+        default: null
+    },
     contact: {
         type: String,
-        required: true
+        default: ''
     },
-    // Extracted persona data (populated after Gemini processing)
     persona: {
         diseases: {
             current: [String],
@@ -23,26 +26,30 @@ const patientSchema = new mongoose.Schema({
         medications: [String],
         labs: [String],
         doctors: [String],
+        allergies: [String],
         lastUpdated: {
             type: Date,
             default: Date.now
         }
     },
-    // ML risk prediction
     riskPrediction: {
         score: {
             type: Number,
-            min: 0,
-            max: 100
+            default: 0
         },
         factors: [String],
-        lastUpdated: Date
+        lastUpdated: {
+            type: Date,
+            default: Date.now
+        }
     },
     docs: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Document"
+        type: Schema.Types.ObjectId,
+        ref: 'Document'
     }]
-}, { timestamps: true });
+}, {
+    timestamps: true
+});
 
-const Patient = mongoose.model("Patient", patientSchema); 
+const Patient = mongoose.model('Patient', patientSchema);
 export default Patient;

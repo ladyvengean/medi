@@ -17,6 +17,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
 
     const { buffer, mimetype, originalname, size } = req.file;
     // Generate a unique userId for testing - in production, get from JWT
+    //if user exists then use their id, otherwise generate a random user id
     const userId = req.user?.id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     console.log(`Processing file: ${originalname}, size: ${size}, type: ${mimetype}`);
@@ -75,6 +76,37 @@ const uploadDocument = asyncHandler(async (req, res) => {
         
         const extractedData = await extractMedicalData(generativePart);
         console.log('Gemini response:', extractedData);
+
+        
+        if (extractedData.error === "This is not a valid medical document.") {
+            console.log("Rejected: Not a medical document");
+            document.processingStatus = 'failed';
+            await document.save();
+
+            return res.status(400).json(
+                new Apiresponse(400, null, "Uploaded file is not a valid medical document.")
+            );
+        }
+
+        const isEmptyMedicalData =
+        !extractedData.name &&
+        !extractedData.age &&
+        (!extractedData.diseases || extractedData.diseases.length === 0) &&
+        (!extractedData.medications || extractedData.medications.length === 0) &&
+        (!extractedData.allergies || extractedData.allergies.length === 0);
+
+        if (isEmptyMedicalData) {
+            console.log("Rejected: No meaningful medical data");
+            document.processingStatus = 'failed';
+            await document.save();
+
+            return res.status(400).json(
+                new Apiresponse(400, null, "No medical information found. This doesn't appear to be a medical document.")
+            );
+        }
+
+
+
 
         // Check if extraction failed
         if (extractedData.error) {
@@ -159,6 +191,9 @@ const uploadDocument = asyncHandler(async (req, res) => {
             }
         }
 
+        //{okay so its there to just mark the document : failed}
+        //we already did this document = new Document({...}); await document.save(); so if everything or anything fails later we need to make sure that That document isn’t just sitting there with a "processing" status forever and You mark it as "failed" and You also add the errorMessage so devs/admins can debug later
+
         // Remove temporary patient if created and processing failed
         if (tempPatient && tempPatient._id) {
             try {
@@ -168,6 +203,14 @@ const uploadDocument = asyncHandler(async (req, res) => {
                 console.error('Error deleting temporary patient:', deleteError);
             }
         }
+
+//         { So why delete the temporary patient?
+// Because it was:
+// Only created for this document
+// Not connected to a real user yet
+// Just a placeholder
+// So if the document didn’t go through, you don’t want junk temp patients sitting in your database.
+// 💡 This prevents garbage data and keeps your Patient collection clean. }
 
         // Send proper error response
         res.status(500).json(
@@ -221,131 +264,3 @@ const getAllPatients = asyncHandler(async (req, res) => {
 });
 
 export { uploadDocument, getPatientPersona, getAllPatients };
-// import fs from 'fs';
-// import path from 'path';
-
-// // Upload document controller
-// const uploadDocument = async (req, res) => {
-//   try {
-//     if (!req.file) {
-//       return res.status(400).json({ 
-//         success: false,
-//         message: "No file uploaded" 
-//       });
-//     }
-
-//     console.log('File uploaded:', req.file);
-
-//     // Here you would process the file with your medical document analysis
-//     // You could integrate with Google's Gemini API, OCR, or other AI services
-    
-//     // Mock response for now - replace with actual processing
-//     const mockResponse = {
-//       success: true,
-//       message: "Document uploaded and processed successfully",
-//       data: {
-//         filename: req.file.originalname,
-//         fileSize: req.file.size,
-//         mimeType: req.file.mimetype,
-//         uploadPath: req.file.path,
-//         // Mock medical data extraction
-//         extractedData: {
-//           patientName: "John Doe",
-//           age: "35",
-//           medication: "Amoxicillin 500mg",
-//           dosage: "3 times daily",
-//           duration: "7 days",
-//           diagnosis: "Upper respiratory infection",
-//           doctorName: "Dr. Smith"
-//         }
-//       }
-//     };
-
-//     res.status(200).json(mockResponse);
-//   } catch (error) {
-//     console.error('Upload error:', error);
-//     res.status(500).json({ 
-//       success: false,
-//       message: error.message || "Upload failed" 
-//     });
-//   }
-// };
-
-// // Get patient persona controller
-// const getPatientPersona = async (req, res) => {
-//   try {
-//     // Mock patient data - replace with actual database query
-//     const mockPatientData = {
-//       success: true,
-//       message: "Patient data retrieved successfully",
-//       data: {
-//         patients: [
-//           {
-//             id: 1,
-//             name: "John Doe",
-//             age: 35,
-//             gender: "Male",
-//             lastVisit: "2024-06-01",
-//             medications: [
-//               {
-//                 name: "Amoxicillin",
-//                 dosage: "500mg",
-//                 frequency: "3 times daily",
-//                 duration: "7 days"
-//               },
-//               {
-//                 name: "Ibuprofen",
-//                 dosage: "200mg",
-//                 frequency: "As needed",
-//                 duration: "PRN"
-//               }
-//             ],
-//             conditions: ["Upper respiratory infection", "Mild inflammation"],
-//             allergies: ["Penicillin"],
-//             vitals: {
-//               bloodPressure: "120/80",
-//               heartRate: "72 bpm",
-//               temperature: "98.6°F"
-//             }
-//           },
-//           {
-//             id: 2,
-//             name: "Jane Smith",
-//             age: 28,
-//             gender: "Female",
-//             lastVisit: "2024-06-05",
-//             medications: [
-//               {
-//                 name: "Metformin",
-//                 dosage: "500mg",
-//                 frequency: "Twice daily",
-//                 duration: "Ongoing"
-//               }
-//             ],
-//             conditions: ["Type 2 Diabetes"],
-//             allergies: ["None known"],
-//             vitals: {
-//               bloodPressure: "118/75",
-//               heartRate: "68 bpm",
-//               temperature: "98.4°F"
-//             }
-//           }
-//         ],
-//         totalPatients: 2
-//       }
-//     };
-
-//     res.status(200).json(mockPatientData);
-//   } catch (error) {
-//     console.error('Patient data error:', error);
-//     res.status(500).json({ 
-//       success: false,
-//       message: "Failed to fetch patient data" 
-//     });
-//   }
-// };
-
-// export {
-//   uploadDocument,
-//   getPatientPersona
-// };

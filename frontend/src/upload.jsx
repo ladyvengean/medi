@@ -48,7 +48,18 @@ const UploadTest = () => {
         body: formData,
       });
 
+      //res is the Response object returned by our backend.
+      // It has things like:
+      // res.status (e.g. 200, 400)
+      // res.ok (true or false)
+      // res.body (the actual data — in stream form)
+      // and methods like res.json(), res.text(), etc.
+
+
+
       const data = await res.json();
+
+      // It reads the response from the backend and converts it into a JavaScript object (assuming that response is JSON).
 
       if (!res.ok) {
         throw new Error(data.message || 'Upload failed');

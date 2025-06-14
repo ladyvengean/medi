@@ -41,6 +41,9 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import geminiroute from "./routes/gemini.route.js";
+import userRoutes from "./routes/user.routes.js";
+
+
 
 const app = express();
 
@@ -61,6 +64,7 @@ app.use(cookieParser());
 
 // Routes declaration
 app.use("/api/v1/upload", geminiroute);
+app.use("/api/v1/auth", userRoutes);
 
 export { app };
 

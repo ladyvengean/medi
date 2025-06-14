@@ -1,3 +1,4 @@
+
 import mongoose from 'mongoose';
 import { Apierror } from '../utils/Apierror.js';
 import { Apiresponse } from '../utils/Apiresponse.js';
@@ -140,13 +141,21 @@ const uploadDocument = asyncHandler(async (req, res) => {
             patient.docs.push(document._id);
         }
         
-        // Update basic info if available
-        if (extractedData.name && extractedData.name !== 'Unknown') {
+        // Update basic info if available and valid
+        if (extractedData.name && extractedData.name !== 'Unknown' && extractedData.name.trim() !== '') {
             patient.name = extractedData.name;
         }
-        if (extractedData.age) {
+        if (extractedData.age && extractedData.age > 0) {
             patient.age = extractedData.age;
         }
+
+        // Calculate and update risk prediction
+        const riskScore = calculateRiskScore(patient.persona);
+        patient.riskPrediction = {
+            score: riskScore,
+            factors: getRiskFactors(patient.persona),
+            lastUpdated: new Date()
+        };
 
         // Save both document and patient
         await Promise.all([
@@ -155,23 +164,18 @@ const uploadDocument = asyncHandler(async (req, res) => {
         ]);
 
         console.log('Patient and document updated successfully');
+        console.log('Updated patient data:', {
+            name: patient.name,
+            diseases: patient.persona.diseases.current,
+            medications: patient.persona.medications,
+            allergies: patient.persona.allergies
+        });
 
         res.status(200).json(
             new Apiresponse(
                 200,
-                {
-                    patient: {
-                        id: patient._id,
-                        name: patient.name,
-                        age: patient.age,
-                        contact: patient.contact,
-                        persona: patient.persona,
-                        riskPrediction: patient.riskPrediction
-                    },
-                    extractedData: extractedData,
-                    documentId: document._id
-                },
-                'Document processed and patient persona updated successfully'
+                null,
+                'Document uploaded to database and processed successfully'
             )
         );
 
@@ -192,7 +196,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
         }
 
         //{okay so its there to just mark the document : failed}
-        //we already did this document = new Document({...}); await document.save(); so if everything or anything fails later we need to make sure that That document isn’t just sitting there with a "processing" status forever and You mark it as "failed" and You also add the errorMessage so devs/admins can debug later
+        //we already did this document = new Document({...}); await document.save(); so if everything or anything fails later we need to make sure that That document isn't just sitting there with a "processing" status forever and You mark it as "failed" and You also add the errorMessage so devs/admins can debug later
 
         // Remove temporary patient if created and processing failed
         if (tempPatient && tempPatient._id) {
@@ -209,7 +213,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
 // Only created for this document
 // Not connected to a real user yet
 // Just a placeholder
-// So if the document didn’t go through, you don’t want junk temp patients sitting in your database.
+// So if the document didn't go through, you don't want junk temp patients sitting in your database.
 // 💡 This prevents garbage data and keeps your Patient collection clean. }
 
         // Send proper error response
@@ -236,8 +240,42 @@ const getPatientPersona = asyncHandler(async (req, res) => {
             );
         }
 
+        console.log('Found patient data:', {
+            name: patient.name,
+            diseases: patient.persona.diseases.current,
+            medications: patient.persona.medications,
+            allergies: patient.persona.allergies
+        });
+
+        // Generate clean patient summary
+        const patientSummary = {
+            name: patient.name,
+            age: patient.age,
+            contact: patient.contact,
+            lastUpdated: patient.persona.lastUpdated,
+            medicalSummary: {
+                currentConditions: patient.persona.diseases.current.length > 0 
+                    ? patient.persona.diseases.current 
+                    : ["No current conditions recorded"],
+                medications: patient.persona.medications.length > 0 
+                    ? patient.persona.medications 
+                    : ["No medications recorded"],
+                allergies: patient.persona.allergies.length > 0 
+                    ? patient.persona.allergies 
+                    : ["No allergies recorded"]
+            },
+            riskAssessment: {
+                score: patient.riskPrediction.score,
+                level: getRiskLevel(patient.riskPrediction.score),
+                factors: patient.riskPrediction.factors.length > 0 
+                    ? patient.riskPrediction.factors 
+                    : ["No significant risk factors identified"]
+            },
+            documentsProcessed: patient.docs.length
+        };
+
         res.status(200).json(
-            new Apiresponse(200, { patient }, 'Patient persona retrieved successfully')
+            new Apiresponse(200, patientSummary, 'Patient data retrieved successfully')
         );
     } catch (error) {
         console.error('Error fetching patient:', error);
@@ -262,5 +300,46 @@ const getAllPatients = asyncHandler(async (req, res) => {
         );
     }
 });
+
+// Helper function for risk level
+function getRiskLevel(score) {
+    if (score <= 2) return "Low";
+    if (score <= 5) return "Moderate"; 
+    if (score <= 8) return "High";
+    return "Very High";
+}
+
+// Helper function to calculate risk score
+function calculateRiskScore(persona) {
+    let score = 0;
+    
+    // Add points based on conditions
+    score += persona.diseases.current.length * 2;
+    score += persona.diseases.past.length * 1;
+    score += persona.medications.length * 1;
+    score += persona.allergies.length * 0.5;
+    
+    // Cap at 10
+    return Math.min(score, 10);
+}
+
+// Helper function to get risk factors
+function getRiskFactors(persona) {
+    const factors = [];
+    
+    if (persona.diseases.current.length > 0) {
+        factors.push(`${persona.diseases.current.length} active condition(s)`);
+    }
+    
+    if (persona.medications.length > 3) {
+        factors.push("Multiple medications");
+    }
+    
+    if (persona.allergies.length > 0) {
+        factors.push(`${persona.allergies.length} known allergy(ies)`);
+    }
+    
+    return factors.length > 0 ? factors : ["No significant risk factors identified"];
+}
 
 export { uploadDocument, getPatientPersona, getAllPatients };

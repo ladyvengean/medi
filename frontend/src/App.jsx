@@ -1,19 +1,4 @@
-// import React from 'react';
-// import UploadTest from './upload';
 
-// import './App.css';
-
-// function App() {
-//   return (
-//     <div className="App">
-//       <div className="min-h-screen bg-gray-100 py-8">
-//         <UploadTest />
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default App;
 
 import React, { useState } from 'react';
 import UploadTest from './upload';
@@ -22,11 +7,11 @@ import RequestAmbulance from './requestAmbulance';
 import './App.css';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('upload'); // 'upload', 'donate', or 'request'
+  const [currentPage, setCurrentPage] = useState('upload'); // 'upload', 'donate', or 'request' teeno
 
   return (
     <div className="App">
-      {/* Navigation */}
+      {/* Navigation upar */}
       <nav className="bg-gray-800 p-4">
         <div className="flex gap-4">
           <button
@@ -62,7 +47,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Page Content */}
+      {/* Page Kontent hehe */}
       {currentPage === 'upload' ? (
         <div className="min-h-screen bg-gray-100 py-8">
           <UploadTest />

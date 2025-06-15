@@ -39,7 +39,7 @@ const DonateBlood = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       {!showForm ? (
         <div className="container mx-auto px-6 py-20">
-          {/* Main Section */}
+          {/* main Section here */}
           <div className="text-center mb-16">
             <h1 className="text-6xl md:text-8xl font-bold mb-8 bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">
               DONATE BLOOD
@@ -65,7 +65,7 @@ const DonateBlood = () => {
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Stats ik */}
           <div className="text-center mb-16">
             <div className="grid md:grid-cols-3 gap-8">
               <div>

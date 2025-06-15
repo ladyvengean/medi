@@ -75,22 +75,7 @@ const UploadTest = () => {
     }
   };
 
-  // const fetchPatientData = async () => {
-  //   try {
-  //     const res = await fetch('http://localhost:8000/api/v1/upload/patient');
-  //     const data = await res.json();
-      
-  //     if (!res.ok) {
-  //       throw new Error(data.message || 'Failed to fetch patient data');
-  //     }
-      
-  //     setResponse(data);
-  //     console.log('Patient data:', data);
-  //   } catch (err) {
-  //     console.error('Fetch error:', err);
-  //     setError(err.message || 'Failed to fetch patient data');
-  //   }
-  // };
+  
 
   const fetchPatientData = async () => {
   const userId = 'user_1749479242059_muxdyhh8w'; // Replace with dynamic value later if needed
@@ -145,7 +130,7 @@ const UploadTest = () => {
           className={`w-full py-3 px-4 rounded-lg font-medium ${
             !file || uploading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-red-600 text-white hover:bg-blue-700'
           }`}
         >
           {uploading ? (

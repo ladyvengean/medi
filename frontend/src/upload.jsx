@@ -78,7 +78,7 @@ const UploadTest = () => {
   
 
   const fetchPatientData = async () => {
-  const userId = 'user_1749479242059_muxdyhh8w'; // Replace with dynamic value later if needed
+  const userId = 'user_1749479242059_muxdyhh8w'; // Replace with dynamic value later if needed oki
   try {
     const res = await fetch(`http://localhost:8000/api/v1/upload/patient?userId=${userId}`);
     const data = await res.json();
@@ -102,7 +102,7 @@ const UploadTest = () => {
         Medical Document Upload Test
       </h1>
       
-      {/* File Upload Section */}
+      {/* File Upload section */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Select Medical Document (PDF or Image)
@@ -122,7 +122,7 @@ const UploadTest = () => {
         )}
       </div>
 
-      {/* Upload Button */}
+      {/* upload button */}
       <div className="mb-6">
         <button
           onClick={handleUpload}
@@ -144,7 +144,7 @@ const UploadTest = () => {
         </button>
       </div>
 
-      {/* Fetch Patient Data Button */}
+      {/* fetch patient data button */}
       <div className="mb-6">
         <button
           onClick={fetchPatientData}
@@ -154,7 +154,7 @@ const UploadTest = () => {
         </button>
       </div>
 
-      {/* Error Display */}
+      {/* error display of any*/}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="text-red-800 font-medium">Error:</div>
@@ -162,7 +162,7 @@ const UploadTest = () => {
         </div>
       )}
 
-      {/* Response Display */}
+      {/* response display ki ye response aya */}
       {response && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="text-green-800 font-medium mb-2">Response:</div>

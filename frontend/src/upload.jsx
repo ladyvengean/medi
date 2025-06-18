@@ -43,7 +43,7 @@ const UploadTest = () => {
     formData.append('document', file);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/upload/upload', {
+      const res = await fetch('https://medi-2.onrender.com/api/v1/upload/upload', {
         method: 'POST',
         body: formData,
       });
@@ -80,7 +80,7 @@ const UploadTest = () => {
   const fetchPatientData = async () => {
   const userId = 'user_1749479242059_muxdyhh8w'; // Replace with dynamic value later if needed oki
   try {
-    const res = await fetch(`http://localhost:8000/api/v1/upload/patient?userId=${userId}`);
+    const res = await fetch(`https://medi-2.onrender.com/api/v1/upload/patient?userId=${userId}`);
     const data = await res.json();
 
     if (!res.ok) {

@@ -49,7 +49,7 @@ function AuthPage() {
         if (response.ok) {
           // Store token if it returns 
           if (data.token) {
-            localStorage.setItem('authToken', data.token);
+            localStorage.setItem('accessToken', data.token);
           }
           console.log('Login successful:', data);
           navigate('/nav');

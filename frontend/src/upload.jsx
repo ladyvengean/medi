@@ -74,8 +74,73 @@ const UploadTest = () => {
       setUploading(false);
     }
   };
+//   const handleUpload = async () => {
+//   if (!file) {
+//     setError('Please select a file first');
+//     return;
+//   }
 
-  
+//   setUploading(true);
+//   setError(null);
+//   setResponse(null);
+
+//   const formData = new FormData();
+//   formData.append('document', file);
+
+//   try {
+//     const res = await fetch('https://medi-2.onrender.com/api/v1/upload/upload', {
+//       method: 'POST',
+//       body: formData,
+//     });
+
+//     const data = await res.json();
+
+//     if (!res.ok) {
+//       throw new Error(data.message || 'Upload failed');
+//     }
+
+//     setResponse(data);
+//     console.log('✅ Upload successful:', data);
+
+//     // 🌟 New: Save the extracted persona to the user profile
+//     const extracted = data.extractedData;
+//     const token = localStorage.getItem("accessToken");
+
+//     if (extracted && token) {
+//       await fetch("https://medi-2.onrender.com/api/v1/user/persona", {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           Authorization: `Bearer ${token}`
+//         },
+//         body: JSON.stringify({
+//           name: extracted.name || null,
+//           age: extracted.age ? parseInt(extracted.age) : null,
+//           diseases: Array.isArray(extracted.diseases) ? extracted.diseases.filter(d => d) : [],
+//           medications: Array.isArray(extracted.medications) ? extracted.medications.filter(m => m) : [],
+//           allergies: Array.isArray(extracted.allergies) ? extracted.allergies.filter(a => a) : [],
+//           lastVisit: extracted.lastVisit || null
+//         })
+//       })
+//       .then(res => res.json())
+//       .then(data => {
+//         console.log("✅ Persona saved to user:", data);
+//       })
+//       .catch(err => {
+//         console.error("❌ Failed to save persona:", err);
+//       });
+//     }
+
+//   } catch (err) {
+//     console.error('Upload error:', err);
+//     setError(err.message || 'Upload failed');
+//   } finally {
+//     setUploading(false);
+//   }
+// };
+
+
+
 
   const fetchPatientData = async () => {
   const userId = 'user_1749479242059_muxdyhh8w'; // Replace with dynamic value later if needed oki

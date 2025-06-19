@@ -53,13 +53,13 @@ const NavPage = () => {
           </div>
 
           <div className="bg-gray-800 p-8 rounded-lg text-center hover:bg-gray-700 transition-colors">
-            <h3 className="text-2xl font-semibold mb-4 text-red-400">Go Back</h3>
-            <p className="text-gray-300 mb-6">Return to the previous page</p>
+            <h3 className="text-2xl font-semibold mb-4 text-red-400">Profile</h3>
+            <p className="text-gray-300 mb-6">Go to profile</p>
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/profile')}
               className="bg-red-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
             >
-              Go Back
+              Profile
             </button>
           </div>
         </div>

@@ -23,6 +23,14 @@ const userSchema = new Schema(
         },
         refreshToken: {
             type: String
+        },
+        persona: {
+            name: { type: String },
+            age: { type: Number },
+            diseases: { type: [String], default: [] },
+            medications: { type: [String], default: [] },
+            allergies: { type: [String], default: [] },
+            lastVisit: { type: String }  
         }
     },
     {

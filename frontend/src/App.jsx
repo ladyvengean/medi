@@ -6,6 +6,7 @@ import RequestAmbulance from './requestAmbulance';
 import './App.css';
 import AuthPage from './pages/AuthPage';
 import NavPage from './pages/NavPage';
+import Profile from './profile';
 
 function App() {
   return (
@@ -19,6 +20,8 @@ function App() {
           <Route path="/upload" element={<UploadTest />} />
           <Route path="/ambulance" element={<RequestAmbulance />} />
           <Route path="/blood" element={<DonateBlood />} />
+          <Route path="/profile" element={<Profile />} />
+
           
         </Routes>
       </div>

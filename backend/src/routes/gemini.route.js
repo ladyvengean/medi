@@ -10,7 +10,7 @@ const router = Router();
 // router.use(verifyJWT);
 
 // Upload document route
-router.route('/upload').post(upload.single('document'), uploadDocument);
+router.route('/upload').post(verifyJWT, upload.single('document'), uploadDocument);
 
 // Get patient persona route  
 router.route('/patient').get(getPatientPersona);

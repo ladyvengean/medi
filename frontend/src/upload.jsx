@@ -521,7 +521,7 @@ const UploadTest = () => {
       setResponse(data);
 
       const extractedUserId = data?.data?.userId;
-      console.log('Extracted userId:', extractedUserId); // 🧠 DEBUG THIS TOO
+      console.log('Extracted userId:', extractedUserId); 
 
       if (extractedUserId) {
         setUserId(extractedUserId);

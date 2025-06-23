@@ -58,11 +58,11 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 // Root route
-// app.get("/", (req, res) => {
-//   res.send("Waste classification API is running");
-// });
+app.get("/", (req, res) => {
+  res.send("Waste classification API is running");
+});
 
-// Routes declaration
+//Routes declaration
 app.use("/api/v1/upload", geminiroute);
 app.use("/api/v1/auth", userRoutes);
 

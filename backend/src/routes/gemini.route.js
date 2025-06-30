@@ -6,8 +6,7 @@ import { verifyJWT } from '../middlewares/auth.middleware.js'; // Disabled for t
 
 const router = Router();
 
-// Temporarily disable auth for testing
-// router.use(verifyJWT);
+
 
 // Upload document route
 router.route('/upload').post(verifyJWT, upload.single('document'), uploadDocument);

@@ -30,7 +30,53 @@ const userSchema = new Schema(
             diseases: { type: [String], default: [] },
             medications: { type: [String], default: [] },
             allergies: { type: [String], default: [] },
-            lastVisit: { type: String }  
+            lastVisit: { type: String },
+            // Additional structured medical data from Gemini
+            vitals: {
+                bloodPressure: { type: String },
+                heartRate: { type: String },
+                temperature: { type: String },
+                weight: { type: String },
+                height: { type: String },
+                bmi: { type: String }
+            },
+            labResults: {
+                bloodWork: { type: [String], default: [] },
+                urinalysis: { type: [String], default: [] },
+                imaging: { type: [String], default: [] },
+                otherTests: { type: [String], default: [] }
+            },
+            diagnosis: {
+                primaryDiagnosis: { type: String },
+                secondaryDiagnosis: { type: [String], default: [] },
+                differentialDiagnosis: { type: [String], default: [] }
+            },
+            treatmentPlan: {
+                prescriptions: { type: [String], default: [] },
+                procedures: { type: [String], default: [] },
+                followUp: { type: String },
+                restrictions: { type: [String], default: [] },
+                recommendations: { type: [String], default: [] }
+            },
+            visitInfo: {
+                visitDate: { type: String },
+                doctorName: { type: String },
+                hospitalClinic: { type: String },
+                visitType: { type: String },
+                chiefComplaint: { type: String }
+            },
+            riskAssessment: {
+                riskLevel: { type: String },
+                riskFactors: { type: [String], default: [] },
+                urgentConcerns: { type: [String], default: [] },
+                score: { type: Number }
+            },
+            documentSummary: {
+                documentType: { type: String },
+                keyFindings: { type: [String], default: [] },
+                nextSteps: { type: [String], default: [] },
+                followUpRequired: { type: String }
+            }
         }
     },
     {

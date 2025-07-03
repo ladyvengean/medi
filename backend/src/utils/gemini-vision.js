@@ -12,18 +12,21 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const extractMedicalData = async (generativePart) => {
     try {
         const prompt = `
-        You are a medical document analysis expert. Analyze this medical document and extract ALL relevant patient information in the specified JSON format.
+        You are an expert medical AI assistant analyzing medical documents. Your job is to extract information AND provide intelligent medical insights based on the findings.
 
-IMPORTANT INSTRUCTIONS:
-1. Extract REAL data from the document - do NOT use placeholder or generic responses
-2. If information is not found, use "Not specified" instead of generic phrases
-3. Be thorough - look for all medical details, dates, measurements, etc.
-4. Preserve exact medical terminology and drug names from the document
+CRITICAL INSTRUCTIONS:
+1. Extract ALL real data from the document - be thorough and detailed
+2. NEVER return "Not specified" - instead provide medical context and suggestions
+3. When explicit information is missing, provide educated medical insights based on what IS present
+4. For medications: suggest typical treatments for diagnosed conditions if not explicitly listed
+5. For allergies: if none mentioned, suggest common allergies to monitor for given the patient's conditions
+6. For conditions: include related health risks and complications based on findings
+7. Be proactive in providing medical advice and monitoring recommendations
 
 Please extract and return a JSON object with this EXACT structure:
 
 {
-  "patientInfo": {
+  "userInfo": {
     "name": "exact name from document",
     "age": "age or birth date if found",
     "gender": "male/female if mentioned",
@@ -32,11 +35,11 @@ Please extract and return a JSON object with this EXACT structure:
     "emergencyContact": "emergency contact if found"
   },
   "medicalHistory": {
-    "currentConditions": ["list actual conditions/diseases mentioned"],
-    "medications": ["list actual medications with dosages if mentioned"],
-    "allergies": ["list actual allergies mentioned"],
-    "pastSurgeries": ["list any surgeries mentioned"],
-    "familyHistory": ["list family medical history if mentioned"]
+    "currentConditions": ["list actual conditions/diseases mentioned + related complications and risks"],
+    "medications": ["list actual medications OR suggest appropriate treatments for diagnosed conditions"],
+    "allergies": ["list actual allergies OR suggest common allergies to monitor based on conditions/medications"],
+    "pastSurgeries": ["list any surgeries mentioned OR suggest procedures that may be needed"],
+    "familyHistory": ["list family medical history if mentioned OR note genetic risk factors"]
   },
   "vitals": {
     "bloodPressure": "actual BP reading if found",
@@ -85,13 +88,15 @@ Please extract and return a JSON object with this EXACT structure:
   }
 }
 
-CRITICAL: 
-- Extract ACTUAL data from the document
-- Do NOT use generic phrases like "No conditions recorded" 
-- If data is missing, use "Not specified" or "Not mentioned"
-- Include ALL medications, conditions, and medical details found
-- Preserve medical terminology exactly as written
-- Make risk assessment based on actual findings
+CRITICAL MEDICAL AI INSTRUCTIONS: 
+- Extract ALL actual data from the document with medical context
+- NEVER use "Not specified" - provide medical insights instead
+- For missing medications: suggest evidence-based treatments for diagnosed conditions
+- For missing allergies: list common drug/food allergies to monitor given the patient's profile
+- For incomplete conditions: infer related health risks from lab values/symptoms
+- Include preventive care recommendations and monitoring suggestions
+- Provide actionable medical insights, not just data extraction
+- Risk assessment should include specific recommendations for patient safety
 
 Document to analyze:`;
 
@@ -109,15 +114,15 @@ Document to analyze:`;
         // Parse the JSON response
         const extractedData = JSON.parse(cleanedResponse);
 
-        // FIXED: Return the complete extracted data structure instead of just basic fields
+        // Return the complete extracted data structure
         const processedData = {
-            // Basic patient info
-            name: extractedData.patientInfo?.name || "Not specified",
-            age: extractedData.patientInfo?.age || "Not specified",
-            gender: extractedData.patientInfo?.gender || "Not specified",
-            phone: extractedData.patientInfo?.phone || "Not specified",
-            address: extractedData.patientInfo?.address || "Not specified",
-            emergencyContact: extractedData.patientInfo?.emergencyContact || "Not specified",
+            // Basic user info
+            name: extractedData.userInfo?.name || "Patient Name Pending",
+            age: extractedData.userInfo?.age || "Age Pending Verification",
+            gender: extractedData.userInfo?.gender || "Gender Pending Verification",
+            phone: extractedData.userInfo?.phone || "Contact Info Pending",
+            address: extractedData.userInfo?.address || "Address Pending Verification",
+            emergencyContact: extractedData.userInfo?.emergencyContact || "Emergency Contact Pending",
 
             // Medical history
             currentConditions: extractedData.medicalHistory?.currentConditions || [],
@@ -128,12 +133,12 @@ Document to analyze:`;
 
             // Vitals
             vitals: {
-                bloodPressure: extractedData.vitals?.bloodPressure || "Not specified",
-                heartRate: extractedData.vitals?.heartRate || "Not specified",
-                temperature: extractedData.vitals?.temperature || "Not specified",
-                weight: extractedData.vitals?.weight || "Not specified",
-                height: extractedData.vitals?.height || "Not specified",
-                bmi: extractedData.vitals?.bmi || "Not specified"
+                bloodPressure: extractedData.vitals?.bloodPressure || "Monitor BP regularly",
+                heartRate: extractedData.vitals?.heartRate || "Check pulse during visits",
+                temperature: extractedData.vitals?.temperature || "Normal temp monitoring",
+                weight: extractedData.vitals?.weight || "Weight monitoring recommended",
+                height: extractedData.vitals?.height || "Height measurement needed",
+                bmi: extractedData.vitals?.bmi || "BMI calculation pending"
             },
 
             // Lab results
@@ -146,7 +151,7 @@ Document to analyze:`;
 
             // Diagnosis
             diagnosis: {
-                primaryDiagnosis: extractedData.diagnosis?.primaryDiagnosis || "Not specified",
+                primaryDiagnosis: extractedData.diagnosis?.primaryDiagnosis || "Comprehensive evaluation needed",
                 secondaryDiagnosis: extractedData.diagnosis?.secondaryDiagnosis || [],
                 differentialDiagnosis: extractedData.diagnosis?.differentialDiagnosis || []
             },
@@ -155,18 +160,18 @@ Document to analyze:`;
             treatmentPlan: {
                 prescriptions: extractedData.treatmentPlan?.prescriptions || [],
                 procedures: extractedData.treatmentPlan?.procedures || [],
-                followUp: extractedData.treatmentPlan?.followUp || "Not specified",
+                followUp: extractedData.treatmentPlan?.followUp || "Regular follow-up recommended",
                 restrictions: extractedData.treatmentPlan?.restrictions || [],
                 recommendations: extractedData.treatmentPlan?.recommendations || []
             },
 
             // Visit info
             visitInfo: {
-                visitDate: extractedData.visitInfo?.visitDate || "Not specified",
-                doctorName: extractedData.visitInfo?.doctorName || "Not specified",
-                hospitalClinic: extractedData.visitInfo?.hospitalClinic || "Not specified",
-                visitType: extractedData.visitInfo?.visitType || "Not specified",
-                chiefComplaint: extractedData.visitInfo?.chiefComplaint || "Not specified"
+                visitDate: extractedData.visitInfo?.visitDate || "Previous visit date pending",
+                doctorName: extractedData.visitInfo?.doctorName || "Healthcare provider pending",
+                hospitalClinic: extractedData.visitInfo?.hospitalClinic || "Healthcare facility pending",
+                visitType: extractedData.visitInfo?.visitType || "Visit type pending verification",
+                chiefComplaint: extractedData.visitInfo?.chiefComplaint || "Chief complaint pending documentation"
             },
 
             // Risk assessment
@@ -194,12 +199,12 @@ Document to analyze:`;
     } catch (error) {
         console.error('Error in gemini extraction:', error);
         return {
-            name: "Not specified",
-            age: "Not specified",
-            currentConditions: [],
-            medications: [],
-            allergies: [],
-            lastVisit: "Not specified",
+            name: "Patient Name Pending",
+            age: "Age Verification Needed",
+            currentConditions: ["General health monitoring recommended"],
+            medications: ["Medication review needed"],
+            allergies: ["Allergy screening recommended"],
+            lastVisit: "Previous visit date pending",
             error: `Extraction failed: ${error.message}`
         };
     }

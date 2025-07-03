@@ -1,9 +1,9 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from "mongoose";
 
-const documentSchema = new Schema({
-    patientId: {
-        type: Schema.Types.ObjectId,
-        ref: 'Patient',
+const documentSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
         required: true
     },
     fileName: {
@@ -28,14 +28,12 @@ const documentSchema = new Schema({
     },
     processingStatus: {
         type: String,
-        enum: ['processing', 'completed', 'failed'],
-        default: 'processing'
+        enum: ['pending', 'processing', 'completed', 'failed'],
+        default: 'pending'
     },
     extractedData: {
         diseases: [String],
         medications: [String],
-        labs: [String],
-        doctors: [String],
         allergies: [String],
         rawText: String,
         confidence: Number
@@ -46,5 +44,89 @@ const documentSchema = new Schema({
     timestamps: true
 });
 
-const Document = mongoose.model('Document', documentSchema);
+// Blood Donation Schema
+const bloodDonationSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        required: true
+    },
+    phone: {
+        type: String,
+        required: true
+    },
+    bloodGroup: {
+        type: String,
+        required: true,
+        enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+    },
+    address: {
+        type: String,
+        required: true
+    },
+    preferredDate: {
+        type: Date,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'completed', 'cancelled'],
+        default: 'pending'
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    }
+}, {
+    timestamps: true
+});
+
+// Ambulance Request Schema
+const ambulanceRequestSchema = new mongoose.Schema({
+    patientName: {
+        type: String,
+        required: true
+    },
+    contactNumber: {
+        type: String,
+        required: true
+    },
+    emergencyType: {
+        type: String,
+        required: true,
+        enum: ['Medical Emergency', 'Accident', 'Heart Attack', 'Breathing Problem', 'Other']
+    },
+    pickupAddress: {
+        type: String,
+        required: true
+    },
+    additionalInfo: {
+        type: String
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'dispatched', 'arrived', 'completed'],
+        default: 'pending'
+    },
+    priority: {
+        type: String,
+        enum: ['low', 'medium', 'high', 'critical'],
+        default: 'medium'
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    }
+}, {
+    timestamps: true
+});
+
+const Document = mongoose.model("Document", documentSchema);
+const BloodDonation = mongoose.model("BloodDonation", bloodDonationSchema);
+const AmbulanceRequest = mongoose.model("AmbulanceRequest", ambulanceRequestSchema);
+
 export default Document;
+export { BloodDonation, AmbulanceRequest };

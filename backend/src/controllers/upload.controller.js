@@ -1,11 +1,10 @@
-
 import mongoose from 'mongoose';
 import { Apierror } from '../utils/Apierror.js';
 import { Apiresponse } from '../utils/Apiresponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { extractMedicalData } from '../utils/gemini-vision.js';
 import { fileToGenerativePart } from '../utils/fileUtils.js';
-import Patient from '../models/patient.model.js';
+import User from '../models/user.models.js';
 import Document from '../models/document.model.js';
 
 const uploadDocument = asyncHandler(async (req, res) => {
@@ -18,7 +17,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
 
     const { buffer, mimetype, originalname, size } = req.file;
     
-    // FIXED: Proper user ID handling
+    // Get user ID from authenticated user
     const userId = req.user?._id?.toString();
     if (!userId) {
         throw new Apierror(401, "User authentication required");
@@ -28,41 +27,30 @@ const uploadDocument = asyncHandler(async (req, res) => {
     console.log(`User ID: ${userId}`);
 
     let document;
-    let tempPatient;
 
     try {
-        // First, find or create patient to get proper ObjectId
-        let patient = await Patient.findOne({ userId });
+        // Find the authenticated user
+        let user = await User.findById(userId);
 
-        if (!patient) {
-            // Create temporary patient first
-            tempPatient = new Patient({
-                userId,
-                name: 'Processing...',
-                contact: '',
-                persona: {
-                    diseases: { current: [], past: [] },
-                    medications: [],
-                    labs: [],
-                    doctors: [],
-                    allergies: [],
-                    lastUpdated: new Date()
-                },
-                riskPrediction: {
-                    score: 0,
-                    factors: [],
-                    lastUpdated: new Date()
-                },
-                docs: []
-            });
-
-            patient = await tempPatient.save();
-            console.log('Temporary patient created with ID:', patient._id);
+        if (!user) {
+            throw new Apierror(404, "User not found");
         }
 
-        // Create document record with proper ObjectId
+        // Initialize persona if it doesn't exist
+        if (!user.persona) {
+            user.persona = {
+                name: user.name || '',
+                age: null,
+                diseases: [],
+                medications: [],
+                allergies: [],
+                lastVisit: null
+            };
+        }
+
+        // Create document record
         document = new Document({
-            patientId: patient._id, // Use the actual ObjectId
+            userId: user._id,
             fileName: `${Date.now()}-${originalname}`,
             originalName: originalname,
             filePath: 'memory',
@@ -91,12 +79,17 @@ const uploadDocument = asyncHandler(async (req, res) => {
             );
         }
 
+        // Map Gemini response fields correctly
+        const conditions = extractedData.currentConditions || [];
+        const medications = extractedData.medications || [];
+        const allergies = extractedData.allergies || [];
+
         const isEmptyMedicalData =
             !extractedData.name &&
             !extractedData.age &&
-            (!extractedData.diseases || extractedData.diseases.length === 0) &&
-            (!extractedData.medications || extractedData.medications.length === 0) &&
-            (!extractedData.allergies || extractedData.allergies.length === 0);
+            conditions.length === 0 &&
+            medications.length === 0 &&
+            allergies.length === 0;
 
         if (isEmptyMedicalData) {
             console.log("Rejected: No meaningful medical data");
@@ -113,75 +106,93 @@ const uploadDocument = asyncHandler(async (req, res) => {
             throw new Error(extractedData.error);
         }
 
-        // Update document with extracted data
+        // Update document with extracted data - store the full structured data
         document.extractedData = {
-            diseases: extractedData.diseases || [],
-            medications: extractedData.medications || [],
-            labs: [], // Not in Gemini response
-            doctors: [], // Not in Gemini response
-            allergies: extractedData.allergies || [],
+            diseases: conditions,
+            medications: medications,
+            allergies: allergies,
             rawText: '',
-            confidence: 0.9
+            confidence: 0.9,
+            fullData: extractedData // Store complete Gemini response for future use
         };
         document.processingStatus = 'completed';
         document.processedAt = new Date();
 
-        // Update patient with extracted data
-        const currentDiseases = patient.persona.diseases.current || [];
-        const newDiseases = extractedData.diseases || [];
+        // Update user persona with extracted data
+        const currentDiseases = user.persona.diseases || [];
+        const newDiseases = conditions.filter(condition => 
+            condition && condition !== 'Not specified' && condition.trim() !== ''
+        );
 
-        patient.persona.diseases.current = [...new Set([...currentDiseases, ...newDiseases])];
-        patient.persona.medications = [...new Set([...patient.persona.medications, ...(extractedData.medications || [])])];
-        patient.persona.allergies = [...new Set([...patient.persona.allergies || [], ...(extractedData.allergies || [])])];
-        patient.persona.lastUpdated = new Date();
+        const newMedications = medications.filter(medication => 
+            medication && medication !== 'Not specified' && medication.trim() !== ''
+        );
 
-        // Add document ID to patient's docs array
-        if (!patient.docs.includes(document._id)) {
-            patient.docs.push(document._id);
-        }
+        const newAllergies = allergies.filter(allergy => 
+            allergy && allergy !== 'Not specified' && allergy.trim() !== ''
+        );
+
+        // Only add non-empty values to avoid "Not specified" entries
+        user.persona.diseases = [...new Set([...currentDiseases, ...newDiseases])];
+        user.persona.medications = [...new Set([...user.persona.medications || [], ...newMedications])];
+        user.persona.allergies = [...new Set([...user.persona.allergies || [], ...newAllergies])];
+        user.persona.lastVisit = extractedData.visitInfo?.visitDate || new Date().toISOString();
 
         // Update basic info if available and valid
-        if (extractedData.name && extractedData.name !== 'Unknown' && extractedData.name.trim() !== '') {
-            patient.name = extractedData.name;
+        if (extractedData.name && extractedData.name !== 'Not specified' && extractedData.name.trim() !== '') {
+            user.persona.name = extractedData.name;
         }
-        if (extractedData.age && extractedData.age > 0) {
-            patient.age = extractedData.age;
+        if (extractedData.age && extractedData.age !== 'Not specified' && !isNaN(extractedData.age)) {
+            user.persona.age = extractedData.age;
         }
 
-        // Calculate and update risk prediction
-        const riskScore = calculateRiskScore(patient.persona);
-        patient.riskPrediction = {
-            score: riskScore,
-            factors: getRiskFactors(patient.persona),
-            lastUpdated: new Date()
-        };
+        // Store additional structured data in persona for richer profile
+        user.persona.vitals = extractedData.vitals || {};
+        user.persona.labResults = extractedData.labResults || {};
+        user.persona.diagnosis = extractedData.diagnosis || {};
+        user.persona.treatmentPlan = extractedData.treatmentPlan || {};
+        user.persona.visitInfo = extractedData.visitInfo || {};
+        user.persona.riskAssessment = extractedData.riskAssessment || {};
+        user.persona.documentSummary = extractedData.documentSummary || {};
 
-        // Save both document and patient
-        await Promise.all([
-            document.save(),
-            patient.save()
-        ]);
+        // Save both document and user with better error handling
+        try {
+            await Promise.all([
+                document.save(),
+                user.save()
+            ]);
+            
+            console.log('✅ User persona and document saved to database successfully');
+            console.log('✅ Updated user data:', {
+                name: user.persona.name,
+                diseases: user.persona.diseases,
+                medications: user.persona.medications,
+                allergies: user.persona.allergies,
+                vitals: user.persona.vitals,
+                diagnosis: user.persona.diagnosis
+            });
+            
+            // Verify the save by fetching the user again
+            const savedUser = await User.findById(userId);
+            console.log('✅ Verified saved data in database:', {
+                diseases: savedUser.persona.diseases,
+                medications: savedUser.persona.medications,
+                allergies: savedUser.persona.allergies
+            });
+            
+        } catch (saveError) {
+            console.error('❌ Error saving to database:', saveError);
+            throw new Error(`Database save failed: ${saveError.message}`);
+        }
 
-        console.log('Patient and document updated successfully');
-        console.log('Updated patient data:', {
-            name: patient.name,
-            diseases: patient.persona.diseases.current,
-            medications: patient.persona.medications,
-            allergies: patient.persona.allergies
-        });
-        console.log("patient.userId:", patient.userId);
-        console.log("documentsProcessed:", patient.docs.length);
-
-        const updatedPatient = await Patient.findById(patient._id); // make sure it's saved
-
-        // FIXED: Return proper response with userId
+        // Return proper response with userId
         res.status(200).json({
             success: true,
             statusCode: 200,
-            message: 'Document uploaded to database and processed successfully',
+            message: 'Document uploaded and processed successfully',
             data: {
-                userId: String(patient.userId), // Ensure it's a string
-                documentsProcessed: patient.docs.length,
+                userId: String(user._id),
+                documentsProcessed: 1, // We just processed one document
             }
         });
 
@@ -201,27 +212,6 @@ const uploadDocument = asyncHandler(async (req, res) => {
             }
         }
 
-        //{okay so its there to just mark the document : failed}
-        //we already did this document = new Document({...}); await document.save(); so if everything or anything fails later we need to make sure that That document isn't just sitting there with a "processing" status forever and You mark it as "failed" and You also add the errorMessage so devs/admins can debug later
-
-        // Remove temporary patient if created and processing failed
-        if (tempPatient && tempPatient._id) {
-            try {
-                await Patient.findByIdAndDelete(tempPatient._id);
-                console.log('Temporary patient removed due to processing failure');
-            } catch (deleteError) {
-                console.error('Error deleting temporary patient:', deleteError);
-            }
-        }
-
-        //         { So why delete the temporary patient?
-        // Because it was:
-        // Only created for this document
-        // Not connected to a real user yet
-        // Just a placeholder
-        // So if the document didn't go through, you don't want junk temp patients sitting in your database.
-        // 💡 This prevents garbage data and keeps your Patient collection clean. }
-
         // Send proper error response
         res.status(500).json(
             new Apiresponse(
@@ -233,9 +223,9 @@ const uploadDocument = asyncHandler(async (req, res) => {
     }
 });
 
-const getPatientPersona = asyncHandler(async (req, res) => {
-    // FIXED: Get userId from authenticated user first, then fallback to query param
-    const userId = req.user?.id || req.query.userId;
+const getUserPersona = asyncHandler(async (req, res) => {
+    // Get userId from URL parameter first, then authenticated user, then query param
+    const userId = req.params.id || req.user?._id || req.query.userId;
     
     if (!userId) {
         return res.status(400).json(
@@ -243,150 +233,97 @@ const getPatientPersona = asyncHandler(async (req, res) => {
         );
     }
     
-    console.log('Fetching patient for userId:', userId);
+    console.log('Fetching user for userId:', userId);
 
     try {
-        const patient = await Patient.findOne({ userId }).populate('docs');
+        const user = await User.findById(userId);
 
-        if (!patient) {
+        if (!user) {
             return res.status(404).json(
-                new Apiresponse(404, null, 'No patient record found')
+                new Apiresponse(404, null, 'User not found')
             );
         }
 
-        console.log('Found patient data:', {
-            name: patient.name,
-            diseases: patient.persona.diseases.current,
-            medications: patient.persona.medications,
-            allergies: patient.persona.allergies
+        // Initialize persona if it doesn't exist
+        const persona = user.persona || {
+            name: user.name || '',
+            age: null,
+            diseases: [],
+            medications: [],
+            allergies: [],
+            lastVisit: null
+        };
+
+        console.log('Found user data:', {
+            name: persona.name,
+            diseases: persona.diseases,
+            medications: persona.medications,
+            allergies: persona.allergies,
+            vitals: persona.vitals,
+            diagnosis: persona.diagnosis
         });
 
-        // FIXED: Generate clean patient summary matching frontend expectations
-        const patientSummary = {
-            name: patient.name,
-            age: patient.age,
-            contact: patient.contact,
-            lastUpdated: patient.persona.lastUpdated,
-            // FIXED: Map to frontend expected structure
-            currentConditions: patient.persona.diseases.current.length > 0
-                ? patient.persona.diseases.current
-                : ["No current conditions recorded"],
-            medications: patient.persona.medications.length > 0
-                ? patient.persona.medications
-                : ["No medications recorded"],
-            allergies: patient.persona.allergies.length > 0
-                ? patient.persona.allergies
-                : ["No allergies recorded"],
-            riskAssessment: {
-                score: patient.riskPrediction.score,
-                riskLevel: getRiskLevel(patient.riskPrediction.score),
-                riskFactors: patient.riskPrediction.factors.length > 0
-                    ? patient.riskPrediction.factors
-                    : ["No significant risk factors identified"]
-            },
-            documentsProcessed: patient.docs.length
+        console.log('Full persona object:', JSON.stringify(persona, null, 2));
+
+        // Generate clean user summary - return actual data, let frontend handle empty states
+        const userSummary = {
+            name: persona.name || user.name,
+            age: persona.age,
+            phone: user.phone,
+            lastVisit: persona.lastVisit,
+            diseases: persona.diseases || [],
+            medications: persona.medications || [],
+            allergies: persona.allergies || [],
+            // Include the additional structured data
+            vitals: persona.vitals || {},
+            labResults: persona.labResults || {},
+            diagnosis: persona.diagnosis || {},
+            treatmentPlan: persona.treatmentPlan || {},
+            visitInfo: persona.visitInfo || {},
+            riskAssessment: persona.riskAssessment || {},
+            documentSummary: persona.documentSummary || {}
         };
 
         res.status(200).json(
-            new Apiresponse(200, patientSummary, 'Patient data retrieved successfully')
+            new Apiresponse(200, userSummary, 'User data retrieved successfully')
         );
     } catch (error) {
-        console.error('Error fetching patient:', error);
+        console.error('Error fetching user:', error);
         res.status(500).json(
-            new Apiresponse(500, null, 'Failed to fetch patient data')
+            new Apiresponse(500, null, 'Failed to fetch user data')
         );
     }
 });
 
-const getAllPatients = asyncHandler(async (req, res) => {
+const getAllUsers = asyncHandler(async (req, res) => {
     try {
-        const patients = await Patient.find().populate('docs').sort({ createdAt: -1 });
+        const users = await User.find().select('-password -refreshToken').sort({ createdAt: -1 });
+
+        const usersWithPersona = users.map(user => ({
+            _id: user._id,
+            name: user.name,
+            phone: user.phone,
+            persona: user.persona || {
+                name: user.name || '',
+                age: null,
+                diseases: [],
+                medications: [],
+                allergies: [],
+                lastVisit: null
+            },
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+        }));
 
         res.status(200).json(
-            new Apiresponse(200, { patients, count: patients.length }, 'All patients retrieved successfully')
+            new Apiresponse(200, { users: usersWithPersona, count: usersWithPersona.length }, 'All users retrieved successfully')
         );
     } catch (error) {
-        console.error('Error fetching all patients:', error);
+        console.error('Error fetching all users:', error);
         res.status(500).json(
-            new Apiresponse(500, null, 'Failed to fetch patients data')
+            new Apiresponse(500, null, 'Failed to fetch users data')
         );
     }
 });
 
-// ADDED: Function to create patient on user registration
-const createPatientOnRegistration = asyncHandler(async (userId, userData = {}) => {
-    try {
-        const existingPatient = await Patient.findOne({ userId });
-        if (existingPatient) {
-            return existingPatient;
-        }
-
-        const newPatient = new Patient({
-            userId,
-            name: userData.name || 'New Patient',
-            contact: userData.email || userData.contact || '',
-            persona: {
-                diseases: { current: [], past: [] },
-                medications: [],
-                labs: [],
-                doctors: [],
-                allergies: [],
-                lastUpdated: new Date()
-            },
-            riskPrediction: {
-                score: 0,
-                factors: [],
-                lastUpdated: new Date()
-            },
-            docs: []
-        });
-
-        return await newPatient.save();
-    } catch (error) {
-        console.error('Error creating patient:', error);
-        throw error;
-    }
-});
-
-// Helper function for risk level
-function getRiskLevel(score) {
-    if (score <= 2) return "Low";
-    if (score <= 5) return "Moderate";
-    if (score <= 8) return "High";
-    return "Very High";
-}
-
-// Helper function to calculate risk score
-function calculateRiskScore(persona) {
-    let score = 0;
-
-    // Add points based on conditions
-    score += persona.diseases.current.length * 2;
-    score += persona.diseases.past.length * 1;
-    score += persona.medications.length * 1;
-    score += persona.allergies.length * 0.5;
-
-    // Cap at 10
-    return Math.min(score, 10);
-}
-
-// Helper function to get risk factors
-function getRiskFactors(persona) {
-    const factors = [];
-
-    if (persona.diseases.current.length > 0) {
-        factors.push(`${persona.diseases.current.length} active condition(s)`);
-    }
-
-    if (persona.medications.length > 3) {
-        factors.push("Multiple medications");
-    }
-
-    if (persona.allergies.length > 0) {
-        factors.push(`${persona.allergies.length} known allergy(ies)`);
-    }
-
-    return factors.length > 0 ? factors : ["No significant risk factors identified"];
-}
-
-export { uploadDocument, getPatientPersona, getAllPatients, createPatientOnRegistration };
+export { uploadDocument, getUserPersona, getAllUsers };

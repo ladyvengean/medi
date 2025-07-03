@@ -16,10 +16,10 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
             throw new Apierror(401, "Unauthorized request - No token provided");
         }
 
-        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         console.log("Decoded Token:", decodedToken);
 
-        const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
+        const user = await User.findById(decodedToken?.userId).select("-password -refreshToken");
         console.log("User found in DB:", user);
 
         if (!user) {
